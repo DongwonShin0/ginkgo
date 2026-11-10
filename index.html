@@ -382,8 +382,75 @@ function leafColor(f,t){ /* f 0..100 진척 → 초록→연노랑→샛노랑 *
   const c=p<.5?g.map((v,i)=>lerp(v,l[i],p*2)):l.map((v,i)=>lerp(v,y[i],(p-.5)*2));
   return`rgb(${c.map(v=>Math.round(v)).join(',')})`;
 }
+function paintTree(cv,o){
+  const W=cv.width,H=cv.height,x=cv.getContext('2d'),f=o.fol,rm=o.rem/100,gone=clamp(1-rm,0,1);
+  const S=Math.min(W,H*1.55),gy=H*.80,cx=W*(W>H*1.2?.6:.5),R=rng(1107);
+  const mix=(a,b,t)=>a.map((v,i)=>Math.round(v+(b[i]-v)*t));
+  const rgb=c=>`rgb(${c[0]},${c[1]},${c[2]})`;
+  x.setTransform(1,0,0,1,0,0);x.globalAlpha=1;
+  /* 하늘 */
+  const sk=x.createLinearGradient(0,0,0,gy);sk.addColorStop(0,'#9fc0e0');sk.addColorStop(.5,'#cfe0ea');sk.addColorStop(1,'#efe9d4');
+  x.fillStyle=sk;x.fillRect(0,0,W,H);
+  for(let k=0;k<9;k++){const px=R()*W,py=R()*gy*.7,r=S*(.12+R()*.2);const g=x.createRadialGradient(px,py,0,px,py,r);g.addColorStop(0,'rgba(255,255,255,.28)');g.addColorStop(1,'rgba(255,255,255,0)');x.fillStyle=g;x.fillRect(px-r,py-r,r*2,r*2)}
+  /* 먼 산 */
+  const HC=[[170,188,208],[150,170,194],[134,150,168]];
+  for(let l=0;l<3;l++){const y0=gy-H*(.17-.05*l),ph=[R()*6,R()*6,R()*6],am=H*(.06-.01*l),fq=(2.2+l*1.3)/W*3;
+    x.fillStyle=rgb(mix(HC[l],[238,224,190],.12+gone*.1*l));x.beginPath();x.moveTo(0,gy+4);
+    for(let px=0;px<=W;px+=6){const yy=y0-am*(Math.sin(px*fq+ph[0])*.6+Math.sin(px*fq*2.3+ph[1])*.3+Math.sin(px*fq*5.1+ph[2])*.1);x.lineTo(px,yy)}
+    x.lineTo(W,gy+4);x.closePath();x.fill()}
+  /* 잔디 */
+  const gc=mix([150,176,98],[230,178,28],Math.pow(gone,.8)),gg=x.createLinearGradient(0,gy,0,H);
+  gg.addColorStop(0,rgb(mix(gc,[240,225,150],.35)));gg.addColorStop(1,rgb(mix(gc,[200,140,10],.25)));
+  x.fillStyle=gg;x.fillRect(0,gy,W,H-gy);
+  for(let k=0;k<1500;k++){const px=R()*W,py=gy+Math.pow(R(),1.2)*(H-gy),c=mix(gc,R()<.5?[255,226,120]:[196,138,20],R()*.5);
+    x.fillStyle=`rgba(${c[0]},${c[1]},${c[2]},.55)`;x.beginPath();x.ellipse(px,py,S*(.004+R()*.012),S*.0025,R()*.6-.3,0,7);x.fill()}
+  const nf=Math.round(gone*2600);
+  for(let k=0;k<nf;k++){const a=(R()+R()+R()-1.5)*2,px=cx+a*S*.46,py=gy+Math.pow(R(),1.3)*(H-gy)*.95+H*.005;
+    x.fillStyle=leafColor(100,R());x.globalAlpha=.9;x.beginPath();x.ellipse(px,py,S*(.005+R()*.004),S*.0032,R()*3,0,7);x.fill()}
+  x.globalAlpha=1;
+  /* 줄기 */
+  const tw=S*.04,th=S*.085,by=gy+H*.035;
+  x.fillStyle='#4f4136';x.beginPath();x.moveTo(cx-tw*1.9,by+2);
+  x.bezierCurveTo(cx-tw*1.0,by-th*.15,cx-tw*.85,by-th*.55,cx-tw*.6,by-th);
+  x.lineTo(cx+tw*.6,by-th);x.bezierCurveTo(cx+tw*.85,by-th*.55,cx+tw*1.0,by-th*.15,cx+tw*1.9,by+2);x.closePath();x.fill();
+  x.strokeStyle='rgba(180,160,130,.35)';x.lineWidth=Math.max(1,S*.003);
+  for(let k=0;k<9;k++){const u=(k+.5)/9-.5;x.beginPath();x.moveTo(cx+u*tw*3.4,by);x.quadraticCurveTo(cx+u*tw*2.2+(R()-.5)*tw*.4,by-th*.5,cx+u*tw*1.1,by-th);x.stroke()}
+  /* 가지 */
+  const tips=[],mids=[],MAXD=7;
+  function br(px,py,a,len,w,d){
+    const nx=px+Math.sin(a)*len,ny=py-Math.cos(a)*len,off=(R()-.5)*len*.25;
+    x.strokeStyle=d<2?'#54463a':d<4?'#65574a':'#76675a';x.lineWidth=Math.max(.8,w);x.lineCap='round';
+    x.beginPath();x.moveTo(px,py);x.quadraticCurveTo((px+nx)/2+Math.cos(a)*off,(py+ny)/2+Math.sin(a)*off,nx,ny);x.stroke();
+    if(d>=3)mids.push([nx,ny]);
+    if(d>=MAXD){tips.push([nx,ny,a]);return}
+    const n=(d<1||R()<.18)?3:2;
+    for(let k=0;k<n;k++){let a2=a+(k-(n-1)/2)*(.55-d*.04)+(R()-.5)*.4;a2*=.93;
+      br(nx,ny,a2,len*(.76+R()*.12),w*.64,d+1)}
+  }
+  for(let k=-2;k<=2;k++)br(cx+k*tw*.25,by-th+tw*.1,k*.52+(R()-.5)*.25,S*.09*(.9+R()*.2),S*.026,0);
+  /* 잎 */
+  x.globalAlpha=.93;
+  const leaf=(px,py,a,ls,col)=>{x.setTransform(1,0,0,1,px,py);x.rotate(a);x.fillStyle=col;x.beginPath();x.moveTo(0,0);x.lineTo(-ls*.95,-ls*1.05);x.quadraticCurveTo(0,-ls*1.7,ls*.95,-ls*1.05);x.closePath();x.fill()};
+  const dk=o.dark;
+  const put=(px,py,spread,n)=>{for(let k=0;k<n;k++){const z=R(),t=R(),ox=(R()+R()-1)*spread,oy=(R()+R()-1)*spread*.9,ls=S*.0115*(.8+R()*.6),ang=R()*6.28;
+    if(z>Math.pow(rm,1.25))continue;leaf(px+ox,py+oy,ang,ls,dk?`rgb(${70+t*40|0},${70+t*40|0},${70+t*40|0})`:leafColor(f,t))}};
+  for(const t of tips)put(t[0],t[1],S*.034,16);
+  for(const m of mids)put(m[0],m[1],S*.03,9);
+  x.setTransform(1,0,0,1,0,0);x.globalAlpha=1;
+  /* 날리는 잎 */
+  if(rm<.98&&rm>.02){const m=Math.round(10+14*(1-Math.abs(rm-.5)*2));for(let k=0;k<m;k++){leaf(cx+(R()-.5)*S*.95,gy-S*.45+R()*(S*.55),R()*6.28,S*.016,leafColor(100,R()))}x.setTransform(1,0,0,1,0,0)}
+  /* 사람 */
+  const pr=rng(o.seed||3),PC=['#2f3e5c','#7b3f35','#44563f','#3a3a3a','#6a4a78'];
+  for(let k=0;k<(o.people||0);k++){const px=W*(.08+pr()*.84),py=gy+H*.03+pr()*(H-gy)*.7,hh=S*.034*(.8+py/H*.4);
+    x.fillStyle=PC[k%5];x.beginPath();x.moveTo(px-hh*.17,py);x.lineTo(px-hh*.12,py-hh*.62);x.lineTo(px+hh*.12,py-hh*.62);x.lineTo(px+hh*.17,py);x.closePath();x.fill();
+    x.fillStyle='#d9b99a';x.beginPath();x.arc(px,py-hh*.74,hh*.11,0,7);x.fill()}
+  /* 종이결 */
+  for(let k=0;k<2400;k++){x.fillStyle=R()<.5?'rgba(255,255,255,.05)':'rgba(60,40,10,.04)';x.fillRect(R()*W,R()*H,1+R()*2,1+R()*2)}
+}
+
 function drawTree(cv,o){
   const W=cv.width,H=cv.height,x=cv.getContext('2d'),f=o.fol,rm=o.rem/100,view=o.view||'tree',dark=!!o.dark;
+  if(view==='tree'&&!dark){paintTree(cv,o);return}
   const sky=x.createLinearGradient(0,0,0,H);
   if(dark){sky.addColorStop(0,'#2a2a2a');sky.addColorStop(1,'#444')}else{sky.addColorStop(0,'#b7d3ea');sky.addColorStop(.7,'#e8eef0');sky.addColorStop(1,'#dfe3d6')}
   x.fillStyle=sky;x.fillRect(0,0,W,H);
@@ -482,7 +549,19 @@ $('lbX').onclick=()=>$('lb').hidden=true;$('lb').onclick=e=>{if(e.target.id==='l
 /* ════════ 첫 화면: 시뮬 슬라이더 ════════ */
 const heroCv=$('heroCv');sizeCv(heroCv,1000,620);
 function simState(i){const d=REAL&&DAILY.find(r=>r.i===i);return d?{fol:d.fol,rem:d.rem}:{fol:clamp(fol(i),0,100),rem:clamp(rem(i),0,100)}}
-function drawHero(i){const s=simState(i);drawTree(heroCv,{fol:s.fol,rem:s.rem,view:'tree',people:i<=NOWI?Math.round(mean(RECS.filter(r=>r.i===Math.min(i,NOWI)).map(r=>r.pl))||0):6,seed:9});return s}
+/* 첫 화면 그림: pub/hero_full.jpg(잎이 가득한 모습) · pub/hero_bare.jpg(잎이 진 모습, 선택)를 저장소에 올리면 그 그림을 쓴다. 없으면 코드로 그린 그림 */
+const HERO={full:null,bare:null};
+for(const k of ['full','bare']){const names=[`pub/hero_${k}.jpg`,`hero_${k}.jpg`,`pub/paint_${k}.jpg`,`paint_${k}.jpg`];const tryNext=()=>{const n=names.shift();if(!n)return;const im=new Image();im.onload=()=>{HERO[k]=im;try{simUpdate()}catch(e){}};im.onerror=tryNext;im.src=n};tryNext()}
+function heroPhoto(cv,s){
+  const F=HERO.full;if(!F)return false;const W=cv.width,H=cv.height,x=cv.getContext('2d'),rm=clamp(s.rem/100,0,1);
+  const cover=im=>{const k=Math.max(W/im.naturalWidth,H/im.naturalHeight),w=im.naturalWidth*k,h=im.naturalHeight*k;x.drawImage(im,(W-w)*.62,(H-h)*.85,w,h)};
+  x.setTransform(1,0,0,1,0,0);x.globalAlpha=1;
+  if(HERO.bare){cover(HERO.bare);x.globalAlpha=Math.pow(rm,.8);cover(F);x.globalAlpha=1}
+  else{cover(F);if(rm<1){x.fillStyle=`rgba(125,112,90,${(1-rm)*.4})`;x.fillRect(0,0,W,H)}}
+  const g=x.createLinearGradient(0,0,W*.5,0);g.addColorStop(0,'rgba(245,241,232,.55)');g.addColorStop(1,'rgba(245,241,232,0)');x.fillStyle=g;x.fillRect(0,0,W,H);
+  return true;
+}
+function drawHero(i){const s=simState(i);if(heroPhoto(heroCv,s))return s;drawTree(heroCv,{fol:s.fol,rem:s.rem,view:'tree',people:i<=NOWI?Math.round(mean(RECS.filter(r=>r.i===Math.min(i,NOWI)).map(r=>r.pl))||0):6,seed:9});return s}
 const simS=$('simS');simS.max=NDAY;simS.value=NOWI;
 $('nowMark').style.left=(NOWI/NDAY*100)+'%';
 const ticksDates=[0,Math.round(NDAY*.25),Math.round(NDAY*.5),Math.round(NDAY*.75),NDAY];
