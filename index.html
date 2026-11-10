@@ -369,7 +369,7 @@ if(REAL&&DAILY.length>=3){ /* 앞날 '예상'을 실측에 맞춰 다시 그린�
 }
 const last=RECS[RECS.length-1];
 const peakDay=(()=>{const f=DAILY.find(r=>r.fol>=90);return f?f.date:null})();
-const COMMENTS=['아직 연두빛 위주, 가지 끝부터 노랗게 번지는 중 🍃','절반쯤 물들었고 햇살 받는 쪽이 먼저 노랗다','샛노랗게 거의 다 물들었다, 바람에 잎이 날리기 시작','가지 대부분 드러남, 바닥에 노란 융단','야간 적외선 흑백 화면이라 단풍 색 판정 불가. 가지 대부분 드러나 보임'];
+const COMMENTS=['아직 연두빛 위주, 가지 끝부터 노랗게 번지는 중 🍃','절반쯤 물들었고 햇살 받는 쪽이 먼저 노랗다','샛노랗게 거의 다 물들었다, 바람에 잎이 날리기 시작','가지 대부분 드러남, 바닥에 노란 융단','야간 흑백 화면이라 단풍 색 판정 불가'];
 const commentFor=r=>r.dark?COMMENTS[4]:r.rem<40?COMMENTS[3]:r.fol>85?COMMENTS[2]:r.fol>40?COMMENTS[1]:COMMENTS[0];
 const SEED_ATT=[{name:'헤이',slot:'11/2 13:00',of:46,at:'11/2 12:46'},{name:'은행잎',slot:'11/5 11:00',of:31,at:'11/5 10:52'},{name:'산책',slot:'11/7 14:00',of:58,at:'11/7 13:40'}];
 const SEED_GUESS=[{name:'노랑',a:'2026-11-03',b:'2026-11-07'},{name:'가을',a:'2026-11-05',b:'2026-11-05'},{name:'지팡이',a:'2026-11-01',b:'2026-11-12'},{name:'흰뱀',a:'2026-11-06',b:'2026-11-08'}];
@@ -498,7 +498,7 @@ function simUpdate(){
 simS.oninput=simUpdate;$('simNow').onclick=()=>{simS.value=NOWI;simUpdate()};
 (function leaves(){const el=$('leaves');for(let k=0;k<14;k++){const i=document.createElement('i');i.style.left=(Math.random()*100)+'%';i.style.background=['#f2b600','#e6c200','#d9a400'][k%3];i.style.animationDuration=(9+Math.random()*9)+'s';i.style.animationDelay=(-Math.random()*14)+'s';el.appendChild(i)}})();
 $('headline').textContent=
-`${mdw(last.date)} ${String(last.h).padStart(2,'0')}:00 관측 · 단풍 ${Math.round(last.fol)}% · 남은 잎 ${Math.round(last.rem)}%\n`+
+(REAL&&last.dark&&!RECS.some(r=>r.real&&!r.dark)?`${mdw(last.date)} ${String(last.h).padStart(2,'0')}:00 관측 · 야간이라 판정 보류\n`:`${mdw(last.date)} ${String(last.h).padStart(2,'0')}:00 관측 · 단풍 ${Math.round(last.fol)}% · 남은 잎 ${Math.round(last.rem)}%\n`)+
 `절정 ${peakDay?mdw(peakDay)+' (관측)':'예상 진행 중'} · 시즌 종료 예정 ${md(SITE.seasonEnd)}`;
 simUpdate();
 
@@ -514,9 +514,10 @@ function renderNow(){
   const dRem=prev?Math.round(last.rem-prev.rem):0;
   const yShare=last.real?Math.round(last.yel):(last.rem>0?Math.round(clamp(last.yel/Math.max(last.rem*.82,.01)*100,0,100)):0);
   const ppl=last.pt+last.pl;
+  const UNK=!!REAL&&last.dark&&!RECS.some(r=>r.real&&!r.dark);
   $('readout').innerHTML=
-   `<div class="row"><dt><i class="sw" style="background:var(--s-drop)"></i>남은 잎</dt><dd>${Math.round(last.rem)}<small>%</small></dd><div class="sub">낙엽 ${100-Math.round(last.rem)}% · 전일 같은 시각 대비 ${dRem>=0?'+':''}${dRem}%p</div></div>`+
-   `<div class="row"><dt><i class="sw" style="background:var(--s-fol)"></i>남은 잎 색</dt><dd>${last.real?yShare:Math.min(97,yShare||97)}<small>%</small></dd><div class="sub">남은 잎 가운데 노랗게 물든 비율</div></div>`+
+   `<div class="row"><dt><i class="sw" style="background:var(--s-drop)"></i>남은 잎</dt><dd>${UNK?'–':Math.round(last.rem)}<small>${UNK?'':'%'}</small></dd><div class="sub">${UNK?'아직 낮 사진이 없어 판정할 수 없습니다. 오전 6시 이후 관측부터 표시됩니다':`낙엽 ${100-Math.round(last.rem)}% · 전일 같은 시각 대비 ${dRem>=0?'+':''}${dRem}%p`}</div></div>`+
+   `<div class="row"><dt><i class="sw" style="background:var(--s-fol)"></i>남은 잎 색</dt><dd>${UNK?'–':(last.real?yShare:Math.min(97,yShare||97))}<small>${UNK?'':'%'}</small></dd><div class="sub">남은 잎 가운데 노랗게 물든 비율</div></div>`+
    `<div class="row"><dt><i class="sw" style="background:var(--s-idx)"></i>보이는 사람</dt><dd>${last.np?'–':ppl}<small>${last.np?'':'명'}</small></dd><div class="sub">${last.np?'사람 수 판독이 꺼져 있습니다 (ANTHROPIC_API_KEY를 넣으면 채워집니다)':`나무 ${last.pt} · 잔디밭 ${last.pl} · ${ppl<8?'한산':ppl<25?'보통':'붐빔'}`}</div></div>`;
   $('heroComment').innerHTML=`${last.comment||commentFor(last)}<span style="display:block;font:12px var(--mono);color:var(--muted);margin-top:4px">관측평 · ${mdw(last.date)} ${String(last.h).padStart(2,'0')}:00</span>`;
 }
@@ -527,7 +528,8 @@ const CAMNAME={tree:'원주시 중계',road:'반계IC CCTV',lawn:'반계IC CCTV 
 let ATT=store.get('att',[]);
 function nextSlot(){const h=Math.min(Math.max(last.h+1,8),18);return`${md(last.date)} ${h}:00`}
 function renderAtt(){
-  const all=ATT.map(a=>({...a,me:1})).concat(SEED_ATT.map(a=>({...a}))).slice(0,12);
+  const all=ATT.map(a=>({...a,me:1})).concat(REAL?[]:SEED_ATT.map(a=>({...a}))).slice(0,12);
+  if(!all.length){$('attList').innerHTML='<div class="att"><span>아직 출석 기록이 없습니다. 첫 번째로 눌러 보세요.</span></div>';return}
   $('attList').innerHTML=all.map(a=>`<div class="att ${a.me?'me':''}"><b>${a.at}</b><span>${a.name}</span><small>${a.slot} 관측 · 잔디밭 ${a.of}명 중 1</small></div>`).join('');
 }
 $('attBtn').onclick=()=>{
