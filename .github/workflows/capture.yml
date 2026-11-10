@@ -1,0 +1,49 @@
+name: capture
+
+on:
+  schedule:
+    - cron: "7 21-23,0-9 * * *"
+  workflow_dispatch:
+    inputs:
+      force:
+        description: "시간대·중복 검사를 무시하고 지금 바로 기록 (1)"
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+concurrency:
+  group: capture
+  cancel-in-progress: false
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: ffmpeg · 파이썬 패키지
+        run: |
+          command -v ffmpeg >/dev/null || (sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg)
+          pip install --quiet pillow numpy
+      - name: 캡처·판독
+        env:
+          FORCE: ${{ github.event.inputs.force }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: python capture.py
+      - name: 기록 저장
+        run: |
+          git config user.name  "observatory-bot"
+          git config user.email "observatory-bot@users.noreply.github.com"
+          git add data
+          if git diff --cached --quiet; then
+            echo "바뀐 것 없음"
+          else
+            git commit -m "관측 $(TZ=Asia/Seoul date '+%m/%d %H:%M')"
+            git pull --rebase --autostash
+            git push
+          fi
